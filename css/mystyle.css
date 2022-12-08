@@ -436,3 +436,10 @@ section::before{
 .dtitle span{
     color: #d39393;
 }
+
+canvas{
+    width: 70%;
+    height: 70%;
+    margin-left: 15%;
+    margin-top: 2%;
+}
