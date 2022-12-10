@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@babylonjs/inspector": "^5.37.0"
+  }
+}
