@@ -10,7 +10,39 @@ const createScene = () => {
       }
     const scene = new BABYLON.Scene(engine);
     
+    // This is the function that will do something when pointerlock is exited
+    let lockRelease = () => {
+      if(document.pointerLockElement !== canvas && document.mozPointerLockElement !== canvas) {
+          console.log("DO SOMETHING");
+      }
+  };
+  
+  let lockEnable = () => {
+      canvas.requestPointerLock = canvas.requestPointerLock || canvas.msRequestPointerLock || canvas.mozRequestPointerLock || canvas.webkitRequestPointerLock;
 
+      if (canvas.requestPointerLock) {
+          canvas.requestPointerLock();
+      }
+
+      canvas.removeEventListener("pointerup", lockEnable);
+  };
+
+  // Listen for pointerlock and do something
+  if ("onpointerlockchange" in document) {
+      document.addEventListener("pointerlockchange", lockRelease);
+  } 
+  else if ("onmozpointerlockchange" in document) {
+      document.addEventListener("mozpointerlockchange", lockRelease);
+  }
+
+  canvas.addEventListener("pointerup", lockEnable);
+
+  // Clear out any custom event listeners
+  scene.getEngine().onDisposeObservable.add(() => {
+      document.removeEventListener("pointerlockchange", lockRelease);
+      document.removeEventListener("mozpointerlockchange", lockRelease);
+      canvas.removeEventListener("pointerup", lockEnable);
+  });
     //var gravityVector = new BABYLON.Vector3(0, -9.81, 0);
     //var physicsPlugin = new BABYLON.CannonJSPlugin();
 
@@ -44,6 +76,7 @@ const createScene = () => {
     //camera.followMesh = player;
 
     let speed = .05
+    var jumpSound = new BABYLON.Sound("music", "./mp3/jump.wav", scene);  
 
     player.update = function() {
         var cameraForwardRayPosition = camera.getForwardRay().direction
@@ -51,6 +84,7 @@ const createScene = () => {
         if (keys) {
             if (keys.jump) {
                 player.physicsImpostor.applyImpulse(new BABYLON.Vector3(0, 0.3, 0), player.getAbsolutePosition())
+                 jumpSound.play();
               }
             if (keys.left) {
                 player.locallyTranslate(new BABYLON.Vector3(-speed, 0, 0))
@@ -114,18 +148,15 @@ function handleKeyUp (evt) {
 
     const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
 
-    //var hdrTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("public/environment/environmentSpecular.env", scene);
-    //var currentSkybox = scene.createDefaultSkybox(hdrTexture, true);
+    var hdrTexture = BABYLON.CubeTexture.CreateFromPrefilteredData("public/environment/environmentSpecular.env", scene);
+    var currentSkybox = scene.createDefaultSkybox(hdrTexture, true);
 
-    var atmosphere = new BABYLON.Sound("Ambient", "public/mp3/autumn-sky-meditation-7618.mp3", scene, null, {
+    var atmosphere = new BABYLON.Sound("Ambient", "./mp3/autumn-sky-meditation-7618.mp3", scene, null, {
         loop: true,
         autoplay: true
     });
 
 
-        //BABYLON.SceneLoader.Append("public/", "Level1.glb", scene, function(scene) {
-            //Do something
-        //});
     //BABYLON.SceneLoader.ImportMesh("", "public/", "Level1V2.glb", scene, function(newMeshes) {
         //let mesh = newMeshes[0];
         //mesh.alwaysSelectAsActiveMesh = true;
@@ -134,9 +165,19 @@ function handleKeyUp (evt) {
         //camera.target = player;
     //});
 
-    //const ground = BABYLON.MeshBuilder.CreateGround("ground", {height: 10, width: 10, subdivisions: 4});
-    //ground.position.y = 11;
-    //ground.physicsImpostor = new BABYLON.PhysicsImpostor(ground, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 1, friction: 0.5, restitution: 0.7 }, scene);
+
+
+    BABYLON.SceneLoader.ImportMesh("", "./", "CAMP.glb", scene, function(newMeshes) {
+      let mesh = newMeshes[0];
+      mesh.position.x = -30
+      mesh.position.y = 10.2
+      mesh.position.z = -29.2
+    })
+
+    const particleSystem = new BABYLON.ParticleSystem("particles", 2000);
+    particleSystem.particleTexture = new BABYLON.Texture("image/flame.png");
+    particleSystem.emitter = new BABYLON.Vector3(-30, 11.5, -29);
+    particleSystem.start();
 
     var ground = BABYLON.Mesh.CreateGroundFromHeightMap("ground", "image/heightMap.png", 100, 100, 100, 0, 10, scene, false, () => {
       ground.physicsImpostor = new BABYLON.PhysicsImpostor(ground, BABYLON.PhysicsImpostor.HeightmapImpostor, { mass: 0, friction: 0.0, restitution: 0.7  })
@@ -158,20 +199,45 @@ function handleKeyUp (evt) {
     cMaterial.emissiveColor = new BABYLON.Color3(0.255, 0.215, 0);
     coin.material = cMaterial;
 
+    const coin2 = BABYLON.Mesh.CreateBox('box', 0.25, scene)
+    coin2.position.x = 0
+    coin2.position.y = 12.09
+    coin2.position.z = -28.2
+    coin2.checkCollisions = true
+    coin2.physicsImpostor = new BABYLON.PhysicsImpostor(coin2, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 1, friction: 100, restitution: 0.35 }, scene);
+    cMaterial.emissiveColor = new BABYLON.Color3(0.255, 0.215, 0);
+    coin2.material = cMaterial;
+
+    const coin3 = BABYLON.Mesh.CreateBox('box', 0.25, scene)
+    coin3.position.x = -15.2
+    coin3.position.y = 12.09
+    coin3.position.z = -28.2
+    coin3.checkCollisions = true
+    coin3.physicsImpostor = new BABYLON.PhysicsImpostor(coin3, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 1, friction: 100, restitution: 0.35 }, scene);
+    cMaterial.emissiveColor = new BABYLON.Color3(0.255, 0.215, 0);
+    coin3.material = cMaterial;
+
     var counter = 0;
   
-    var yada = false;
      player.physicsImpostor.registerOnPhysicsCollide(coin.physicsImpostor, function(main, collided){
-       yada = true;
+       coinSound.play();
+       coin.dispose();
      });
-    if (yada = true){
-      counter++;
-      coin.dispose();
-      var coinSound = new BABYLON.Sound("Coin", "public/mp3/coin.mp3", scene, null, {
-      loop: false,
-      autoplay: true
-      });
-    }
+     player.physicsImpostor.registerOnPhysicsCollide(coin2.physicsImpostor, function(main, collided){
+      //yada = true;
+      coinSound.play();
+      coin2.dispose();
+    });
+    player.physicsImpostor.registerOnPhysicsCollide(coin3.physicsImpostor, function(main, collided){
+      //yada = true;
+      coinSound.play();
+      coin3.dispose();
+    });
+    // if (yada = true){
+    //   counter++;
+    //   coin.dispose();
+      var coinSound = new BABYLON.Sound("Coin", "./mp3/coin.wav", scene);
+    // }
         // GUI
     var advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
 
@@ -195,25 +261,7 @@ function handleKeyUp (evt) {
     
 
     
-  //   var scene1 = new BABYLON.Scene(engine);
-	// var camera1 = new BABYLON.ArcRotateCamera("Camera", -Math.PI / 2, Math.PI / 2, 5, BABYLON.Vector3.Zero(), scene1);
-	// camera1.attachControl(canvas, true);
 
-  //   var light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(1, 0.5, 0), scene1);
-  //   light.intensity = 0.8;
-
-  //   var sphere1 = BABYLON.MeshBuilder.CreateSphere("sphere1", {segments:3}, scene1);
-  //   sphere1.position.y = 1;
-  //   sphere1.material = new BABYLON.StandardMaterial("mat1", scene1);
-  //   sphere1.material.wireframe = true;
-  //   showNormals(sphere1, 0.25, new BABYLON.Color3(1, 0.82, 0), scene1);
-
-  //   var sphere2 = BABYLON.MeshBuilder.CreateSphere("sphere2", {segments:6}, scene1);
-  //   sphere2.convertToFlatShadedMesh();
-  //   sphere2.position.y = -1;
-  //   sphere2.material = new BABYLON.StandardMaterial("mat2", scene1);
-  //   sphere2.material.wireframe = true;
-  //   showNormals(sphere2, 0.25, new BABYLON.Color3(1, 0, 0), scene1);
     
 
 
